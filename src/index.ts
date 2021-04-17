@@ -2,6 +2,7 @@
 
 import * as THREE from 'three'
 import { grayscott } from "./grayscott2/grayscott"
+import { ReactionDiffusion, animate } from "./grayscott2/grayScott3"
 // import { OrbitControls } from '/jsm/controls/OrbitControls'
 // import { grayScott } from './grayscott/grayscott'
 
@@ -17,8 +18,8 @@ const drawStartPos = new THREE.Vector2();
 
 
 init();
-setupCanvasDrawing();
-animate();
+// setupCanvasDrawing();
+// animate();
 // const i = grayScott
 
 
@@ -49,19 +50,64 @@ function init() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    window.addEventListener('resize', onWindowResize);
+    // window.addEventListener('resize', onWindowResize);
+
+
+
+
+    const shaderRdaStart = document.getElementById("shader-rda-start").textContent;
+    const shaderRda = document.getElementById("shader-rda").textContent;
+    const shaderRdaScreen = document.getElementById("shader-rda-screen")
+        .textContent;
+
+    const container = document.getElementById("scottCanvas");
+    // const form = document.forms.controls;
+    // const inputFeed = form.elements["input-feed"];
+    // const inputKill = form.elements["input-kill"];
+    // const buttonRestart = form.elements["button-restart"];
+
+    // const presetButtons = Array.from(form.querySelectorAll("[data-preset]"));
+
+    const rda = new ReactionDiffusion(shaderRdaStart, shaderRda, shaderRdaScreen);
+    container.appendChild(rda.renderer.domElement);
+    animate(() => rda.render());
+
+    // form.addEventListener("change", () =>
+    //     rda.reset(inputFeed.value, inputKill.value)
+    // );
+    // form.addEventListener("input", () =>
+    //     rda.reset(inputFeed.value, inputKill.value)
+    // );
+    // buttonRestart.addEventListener("click", () => rda.reset());
+
+    // form.addEventListener("click", (e) => {
+    //     if (!presetButtons.includes(e.target)) return;
+    //     inputFeed.value = e.target.dataset.feed;
+    //     inputKill.value = e.target.dataset.kill;
+
+    //     rda.reset(e.target.dataset.feed, e.target.dataset.kill);
+    // });
+
+    // // Set attribute (rather than value) so reset button works
+    // inputFeed.setAttribute("value", rda.feedRate);
+    // inputKill.setAttribute("value", rda.killRate);
+    // // Form reset event fires before inputs are reset to their intial value, so read from attribute instead
+    // form.addEventListener("reset", () =>
+    //     rda.reset(inputFeed.getAttribute("value"), inputKill.getAttribute("value"))
+    // );
+
 
 }
 
 // Sets up the drawing canvas and adds it as the material map
-
+/*
 function setupCanvasDrawing() {
 
     // get canvas and context
 
     const drawingCanvas = <HTMLCanvasElement>document.getElementById('drawing-canvas');
     const scottCanvas = <HTMLCanvasElement>document.getElementById('scottCanvas');
-    grayscott(scottCanvas)
+    grayscott(scottCanvas, 1024, 1024)
 
 
     const drawingContext = drawingCanvas.getContext('2d');
@@ -145,3 +191,5 @@ function animate() {
     renderer.render(scene, camera);
 
 }
+
+*/

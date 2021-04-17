@@ -1,7 +1,7 @@
-var W = 512,
-  H = 512;
+var W = 1024;
+var H = 1024;
 
-function grayscott(canvas) {
+function grayscott(canvas, W, H) {
   //   var canvas = document.createElement("canvas");
 
   //   canvas.id = "scottCanvas";
@@ -46,7 +46,7 @@ function grayscott(canvas) {
 
   function step() {
     gl.useProgram(timestep_prog);
-    for (var i = 0; i < 40; i++) {
+    for (var i = 0; i < 50; i++) {
       gl.bindTexture(gl.TEXTURE_2D, [t1, t2][i % 2]);
       gl.bindFramebuffer(gl.FRAMEBUFFER, [fb2, fb1][i % 2]);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -77,9 +77,13 @@ function getInitialState() {
       if (central_square) {
         a[4 * i + 0] = 0.5 + Math.random() * 0.02 - 0.01;
         a[4 * i + 1] = 0.25 + Math.random() * 0.02 - 0.01;
+        // a[4 * i + 0] = 1.01;
+        // a[4 * i + 1] = 0.1;
       } else {
-        a[4 * i + 0] = 1.0;
-        a[4 * i + 1] = 0;
+        // a[4 * i + 0] = 0.5 + Math.random() * 0.02 - 0.01;
+        // a[4 * i + 1] = 0.25 + Math.random() * 0.02 - 0.01;
+        a[4 * i + 0] = 1.01;
+        a[4 * i + 1] = 0.019;
       }
     }
   }
