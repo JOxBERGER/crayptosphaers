@@ -1,0 +1,147 @@
+
+
+import * as THREE from 'three'
+import { grayscott } from "./grayscott2/grayscott"
+// import { OrbitControls } from '/jsm/controls/OrbitControls'
+// import { grayScott } from './grayscott/grayscott'
+
+
+// import { FresnelShader } from '/jsm/shaders/FresnelShader'
+// import BG from "../client/assets/bg.png"
+
+// scene.background = new THREE.Texture( 0xff0000 )
+
+
+let camera: THREE.PerspectiveCamera, scene: THREE.Scene, renderer: THREE.WebGLRenderer, mesh: THREE.Mesh, material: THREE.MeshBasicMaterial;
+const drawStartPos = new THREE.Vector2();
+
+
+init();
+setupCanvasDrawing();
+animate();
+// const i = grayScott
+
+
+// hello()
+
+function init() {
+
+
+
+
+
+
+    camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 2000);
+    camera.position.z = 500;
+
+    scene = new THREE.Scene();
+
+    material = new THREE.MeshBasicMaterial();
+
+    // mesh = new THREE.Mesh(new THREE.BoxGeometry(200, 200, 200), material);
+
+    mesh = new THREE.Mesh(new THREE.OctahedronGeometry(120, 10), material);
+
+    scene.add(mesh);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    window.addEventListener('resize', onWindowResize);
+
+}
+
+// Sets up the drawing canvas and adds it as the material map
+
+function setupCanvasDrawing() {
+
+    // get canvas and context
+
+    const drawingCanvas = <HTMLCanvasElement>document.getElementById('drawing-canvas');
+    const scottCanvas = <HTMLCanvasElement>document.getElementById('scottCanvas');
+    grayscott(scottCanvas)
+
+
+    const drawingContext = drawingCanvas.getContext('2d');
+
+    // draw white background
+    if (drawingContext) {
+
+        drawingContext.fillStyle = "rgba(255, 255, 255, 0)";
+        drawingContext.fillRect(0, 0, 1024, 1024);
+
+
+
+        // set canvas as material.map (this could be done to any map, bump, displacement etc.)
+
+        material.map = new THREE.CanvasTexture(scottCanvas);
+
+        // set the variable to keep track of when to draw
+
+        let paint = false;
+
+        // add canvas event listeners
+        drawingCanvas.addEventListener('pointerdown', function (e) {
+
+            paint = true;
+            drawStartPos.set(e.offsetX, e.offsetY);
+
+        });
+
+        drawingCanvas.addEventListener('pointermove', function (e) {
+
+            if (paint) draw(drawingContext, e.offsetX, e.offsetY);
+
+        });
+
+        drawingCanvas.addEventListener('pointerup', function () {
+
+            paint = false;
+
+        });
+
+        drawingCanvas.addEventListener('pointerleave', function () {
+
+            paint = false;
+
+        });
+    }
+}
+
+function draw(drawContext: CanvasRenderingContext2D, x: number, y: number) {
+
+    drawContext.moveTo(drawStartPos.x, drawStartPos.y);
+    drawContext.strokeStyle = '#0ffff0';
+    drawContext.lineTo(x, y);
+    drawContext.stroke();
+    // reset drawing start position to current position.
+    drawStartPos.set(x, y);
+    // need to flag the map as needing updating.
+    if (material.map) {
+        material.map.needsUpdate = true;
+    }
+
+}
+
+function onWindowResize() {
+
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+}
+
+function animate() {
+
+    requestAnimationFrame(animate);
+    material.map.needsUpdate = true;
+
+    mesh.rotation.x += 0.001;
+    mesh.rotation.y += 0.001;
+
+    renderer.render(scene, camera);
+
+}
