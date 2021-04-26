@@ -12,17 +12,9 @@
         margin: 0px;
       }
       html {
-        background: -moz-linear-gradient(
-          top,
-          #11e8bb 0%,
-          #8200c9 100%
-        ); /* FF3.6-15 */
-        background: -webkit-linear-gradient(
-          top,
-          #11e8bb 0%,
-          #8200c9 100%
-        ); /* Chrome10-25,Safari5.1-6 */
-        background: linear-gradient(to bottom, #11e8bb 0%, #8200c9 100%);
+        /* background: -moz-linear-gradient(top, #11e8bb 0%, #8200c9 100%);
+        background: -webkit-linear-gradient(top, #11e8bb 0%, #8200c9 100%);
+        background: linear-gradient(to bottom, #11e8bb 0%, #8200c9 100%); */
       }
       #drawing-canvas {
         position: absolute;
@@ -35,8 +27,9 @@
       }
       #scottCanvas {
         /* visibility: hidden; */
+        opacity: 0.5;
         position: absolute;
-        background-color: #7474748c;
+        background-color: #fd82828c;
         bottom: 0px;
         right: 0px;
         z-index: 3000;
@@ -49,137 +42,117 @@
       href="<%=htmlWebpackPlugin.files.chunks.main.css %>"
     />
   </head>
-  <canvas id="drawing-canvas" height="512" width="512"></canvas>
-  <div id="scottCanvas" height="1024" width="1024"></canvas>
-  <script type="x-webgl/x-vertex-shader" id="vertex-shader">
-    attribute vec2 a_position;
 
-    void main() {
-    	gl_Position = vec4(a_position, 0, 1);
+  <canvas id="scottCanvas" height="1024" width="1024"></canvas>
+  <script type="x-shader/x-vertex" id="standardVertexShader">
+    varying vec2 vUv;
+
+    void main()
+    {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
   </script>
-
-  <script type="x-webgl/x-fragment-shader" id="timestep-shader">
-    precision mediump float;
-    uniform sampler2D u_image;
-    uniform vec2 u_size;
-
-    const float F = 0.0545, K = 0.062,
-    	D_a = 0.2, D_b = 0.1;
-
-    const float TIMESTEP = 1.0;
-
-    void main() {
-    	vec2 p = gl_FragCoord.xy,
-    	     n = p + vec2(0.0, 1.0),
-    	     e = p + vec2(1.0, 0.0),
-    	     s = p + vec2(0.0, -1.0),
-    	     w = p + vec2(-1.0, 0.0);
-
-    	vec2 val = texture2D(u_image, p / u_size).xy,
-    	     laplacian = texture2D(u_image, n / u_size).xy
-    		+ texture2D(u_image, e / u_size).xy
-    		+ texture2D(u_image, s / u_size).xy
-    		+ texture2D(u_image, w / u_size).xy
-    		- 4.0 * val;
-
-    	vec2 delta = vec2(D_a * laplacian.x - val.x*val.y*val.y + F * (1.0-val.x),
-    		D_b * laplacian.y + val.x*val.y*val.y - (K+F) * val.y);
-
-    	gl_FragColor = vec4(val + delta * TIMESTEP, 0, 0);
-    }
-  </script>
-
-  <script type="x-webgl/x-fragment-shader" id="render-shader">
-    precision mediump float;
-    uniform sampler2D u_image;
-    uniform vec2 u_size;
-
-    const float COLOR_MIN = 0.2, COLOR_MAX = 0.4;
-
-    void main() {
-    	float v = (COLOR_MAX - texture2D(u_image, gl_FragCoord.xy / u_size).y) / (COLOR_MAX - COLOR_MIN);
-    	gl_FragColor = vec4(v, v, v, 1);
-    }
-  </script>
-
-  <script type="x-shader/x-fragment" id="shader-rda-start">
-    uniform float size;
-
-    // TODO: Move to uniforms
-    const vec4 colorA = vec4(1.0, 0.0, 0.0, 0.0);
-    const vec4 colorAB = vec4(1.0, 1.0, 0.0, 0.0);
-    const float gap = 0.025;
-
-    void main() {
-    	vec2 uv = gl_FragCoord.xy / size;
-    	vec2 uvFromCenter = uv - vec2(0.5, 0.5);
-    	float distanceFromCenter = length(uvFromCenter);
-
-    	if (abs(uvFromCenter.x) < gap || abs(uvFromCenter.y) < gap) {
-    		gl_FragColor = vec4(1.0, 0.0, 0.0, 0.0);
-    	} else {
-    		gl_FragColor = vec4(1.0, 0.5 - distanceFromCenter, 0.0, 0.0);
-    	}
-    }
-  </script>
-
-  <script type="x-shader/x-fragment" id="shader-rda">
+  <script type="x-shader/x-fragment" id="gsFragmentShader">
+    varying vec2 vUv;
+    uniform float screenWidth;
+    uniform float screenHeight;
+    uniform sampler2D tSource;
     uniform float delta;
-    uniform float size;
-    uniform sampler2D rda;
+    uniform float feed;
+    uniform float kill;
+    uniform vec2 brush;
 
-    uniform float feedRate;
-    uniform float killRate;
+    vec2 texel = vec2(1.0/screenWidth, 1.0/screenHeight);
+    float step_x = 1.0/screenWidth;
+    float step_y = 1.0/screenHeight;
 
-    // TODO: Put in uniforms?
-    const float diffusionRateA = 1.0;
-    const float diffusionRateB = 0.5;
+    void main()
+    {
+        if(brush.x < -5.0)
+        {
+            gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+            return;
+        }
 
-    vec2 getDiffusion(vec2 center) {
-    	return (
-    		0.05 * texture2D(rda, vec2(-1.0, -1.0) / size + center).xy +
-    		0.20 * texture2D(rda, vec2(-1.0,  0.0) / size + center).xy +
-    		0.05 * texture2D(rda, vec2(-1.0,  1.0) / size + center).xy +
-    		0.20 * texture2D(rda, vec2( 0.0, -1.0) / size + center).xy +
-    		-texture2D(rda, center).xy +
-    		0.20 * texture2D(rda, vec2( 0.0,  1.0) / size + center).xy +
-    		0.05 * texture2D(rda, vec2( 1.0, -1.0) / size + center).xy +
-    		0.20 * texture2D(rda, vec2( 1.0,  0.0) / size + center).xy +
-    		0.05 * texture2D(rda, vec2( 1.0,  1.0) / size + center).xy
-    	);
+        //float feed = vUv.y * 0.083;
+        //float kill = vUv.x * 0.073;
+
+        vec2 uv = texture2D(tSource, vUv).rg;
+        vec2 uv0 = texture2D(tSource, vUv+vec2(-step_x, 0.0)).rg;
+        vec2 uv1 = texture2D(tSource, vUv+vec2(step_x, 0.0)).rg;
+        vec2 uv2 = texture2D(tSource, vUv+vec2(0.0, -step_y)).rg;
+        vec2 uv3 = texture2D(tSource, vUv+vec2(0.0, step_y)).rg;
+
+        vec2 lapl = (uv0 + uv1 + uv2 + uv3 - 4.0*uv);//10485.76;
+        float du = /*0.00002*/0.2097*lapl.r - uv.r*uv.g*uv.g + feed*(1.0 - uv.r);
+        float dv = /*0.00001*/0.105*lapl.g + uv.r*uv.g*uv.g - (feed+kill)*uv.g;
+        vec2 dst = uv + delta*vec2(du, dv);
+
+        if(brush.x > 0.0)
+        {
+            vec2 diff = (vUv - brush)/texel;
+            float dist = dot(diff, diff);
+            if(dist < 5.0)
+                dst.g = 0.9;
+        }
+
+        gl_FragColor = vec4(dst.r, dst.g, 0.0, 1.0);
     }
+  </script>
+  <script type="x-shader/x-fragment" id="screenFragmentShader">
+    varying vec2 vUv;
+    uniform float screenWidth;
+    uniform float screenHeight;
+    uniform sampler2D tSource;
+    uniform float delta;
+    uniform float feed;
+    uniform float kill;
+    uniform vec4 color1;
+    uniform vec4 color2;
+    uniform vec4 color3;
+    uniform vec4 color4;
+    uniform vec4 color5;
 
-    void main() {
-    	vec2 uv = gl_FragCoord.xy / size;
-    	vec2 ab = texture2D(rda, uv).xy;
+    vec2 texel = vec2(1.0/screenWidth, 1.0/screenHeight);
 
-    	vec2 diffusion = getDiffusion(uv);
-    	float reaction = ab.x * ab.y * ab.y;
+    void main()
+    {
+        float value = texture2D(tSource, vUv).g;
+        //int step = int(floor(value));
+        //float a = fract(value);
+        float a;
+        vec3 col;
 
-    	vec2 abNew = ab + vec2(
-    		diffusionRateA * diffusion.x - reaction + feedRate * (1.0 - ab.x),
-    		diffusionRateB * diffusion.y + reaction - (killRate + feedRate) * ab.y
-    	) * delta;
+        if(value <= color1.a)
+            col = color1.rgb;
+        if(value > color1.a && value <= color2.a)
+        {
+            a = (value - color1.a)/(color2.a - color1.a);
+            col = mix(color1.rgb, color2.rgb, a);
+        }
+        if(value > color2.a && value <= color3.a)
+        {
+            a = (value - color2.a)/(color3.a - color2.a);
+            col = mix(color2.rgb, color3.rgb, a);
+        }
+        if(value > color3.a && value <= color4.a)
+        {
+            a = (value - color3.a)/(color4.a - color3.a);
+            col = mix(color3.rgb, color4.rgb, a);
+        }
+        if(value > color4.a && value <= color5.a)
+        {
+            a = (value - color4.a)/(color5.a - color4.a);
+            col = mix(color4.rgb, color5.rgb, a);
+        }
+        if(value > color5.a)
+            col = color5.rgb;
 
-    	gl_FragColor = vec4(abNew, 0.0, 1.0);
+    	gl_FragColor = vec4(col.r, col.g, col.b, 1.0);
     }
   </script>
 
-  <script type="x-shader/x-fragment" id="shader-rda-screen">
-    uniform float size;
-    uniform sampler2D rda;
-
-    const float contrast = 3.0;
-
-    void main() {
-    	vec2 uv = gl_FragCoord.xy / size;
-    	vec2 ab = texture2D(rda, uv).xy;
-    	float intensity = (ab.x - ab.y - 0.5) * contrast + 0.5;
-
-    	gl_FragColor = vec4(1.0, intensity, intensity + 0.5, 1.0);
-    }
-  </script>
   <body>
     <h1 class="center">Hello, world! It works!</h1>
 

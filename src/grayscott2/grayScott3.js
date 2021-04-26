@@ -53,6 +53,7 @@ class GpgpuObject {
   }
 
   render(renderer, target) {
+    renderer.setT;
     renderer.render(this.scene, this.camera, target);
   }
 
